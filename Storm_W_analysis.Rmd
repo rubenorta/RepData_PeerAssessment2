@@ -1,0 +1,158 @@
+---
+title: "Storms and other severe weather analysis in the US between 1950-2011"
+author: "Rubén Orta Magán"
+date: "04/25/2015"
+output: html_document
+---
+
+## Synopsis
+
+```{r load_libraries, echo=FALSE, results='hide',message=FALSE, warning=FALSE}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+```
+
+
+## Data Processing
+
+We've obtained the data from U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. The file is accesible at this [url](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) hosted at the Coursera site. 
+
+Usefule links that describe the data:
+
+[National Weather Service Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+[National Climatic Data Center Storm Events FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+```{r download_data, cache = TRUE}
+main_dir <- "/home/ruben/coursera_ds/RepData_PeerAssessment2"
+sub_dir <- "downloadedData"
+data_file <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+local_file <- "/home/ruben/coursera_ds/RepData_PeerAssessment2/downloadedData/stormdata.csv.bz2"
+  
+dir.create(file.path(main_dir, sub_dir), showWarnings = FALSE)
+setwd(file.path(main_dir, sub_dir))
+download.file(data_file,local_file,method = 'curl')
+```
+
+The first step that we do is load the data in memory for the their analysis.
+
+Only take data from the last 20 years
+
+
+```{r, cache = TRUE}
+storm_data <- read.csv(bzfile(local_file))
+storm_data$BGN_DATE <- as.Date(storm_data$BGN_DATE, format="%m/%d/%Y")
+storm_data <- subset(storm_data, BGN_DATE > as.Date("1995-01-01"))
+storm_data$EVTYPE <- as.factor(storm_data$EVTYPE)
+storm_data$EVTYPE <- revalue(storm_data$EVTYPE, c("TSTM WIND" = "THUNDERSTORM WIND", "FLASH FLOOD" = "FLOOD", 
+                                           "THUNDERSTORM WINDS" = "THUNDERSTORM WIND", 
+                                           "MARINE TSTM WIND" = "THUNDERSTORM WIND", 
+                                           "MARINE THUNDERSTORM WIND" = "THUNDERSTORM WIND",
+                                           "ICE STORM" = "WINTER STORM",
+                                           "EXCESSIVE HEAT" = "HEAT",
+                                           "HEAT WAVE" = "HEAT",
+                                           "EXTREME HEAT" = "HEAT",
+                                           "RECORD/EXCESSIVE HEAT" = "HEAT",
+                                           "HIGH WINDS" = "HIGH WIND",
+                                           "WILD/FOREST FIRE" = "WILDFIRE",
+                                           "DENSE FOG" = "FOG",
+                                           "WINTER WEATHER/MIX" = "WINTER WEATHER",
+                                           "TSTM WIND/HAIL" = "THUNDERSTORM WIND",
+                                           "EXTREME COLD/WIND CHILL" = "EXTREME WINDCHILL",
+                                           "FLASH FLOODING" = "FLOOD",
+                                           "EXTREME COLD" = "COLD",
+                                           "COASTAL FLOOD" = "FLOOD",
+                                           "LAKE-EFFECT SNOW" = "HEAVY SNOW",
+                                           "FLOOD/FLASH FLOOD" = "FLOOD",
+                                           "RIP CURRENTS" = "RIP CURRENT",
+                                           "URBAN FLOOD" = "FLOOD",
+                                           "HEAVY SURF/HIGH SURF" = "HIGH SURF",
+                                           "RIVER FLOOD" = "FLOOD",
+                                           "LIGHT SNOW" = "SNOW",
+                                           "STORM SURGE/TIDE" = "STORM SURGE",
+                                           "COASTAL FLOODING" = "FLOOD",
+                                           "DUST DEVIL" = "DUST STORM",
+                                           "MARINE HIGH WIND" = "WIND",
+                                           "MODERATE SNOWFALL" = "SNOW",
+                                           "HURRICANE/TYPHOON" = "HURRICANE",
+                                           "STRONG WIND" = "WIND",
+                                           "HIGH WIND" = "WIND",
+                                           "HURRICANE ERIN" = "HURRICANE",
+                                           "MARINE STRONG WIND" = "WIND",
+                                           "ROUGH SEAS" = "HIGH SURF",
+                                           "HEAT WAVES" = "HEAT",
+                                           "RIP CURRENTS/HEAVY SURF" = "HIGH SURF",
+                                           "HEAT WAVE DROUGHT" = "HEAT",
+                                           "DROUGHT/EXCESSIVE HEAT" = "HEAT",
+                                           "EXCESSIVE RAINFALL" = "HEAVY RAIN",
+                                           "FLOODING" = "FLOOD",
+                                           "HEAVY SEAS" = "HIGH SURF",
+                                           "HEAVY SURF" = "HIGH SURF",
+                                           "RECORD HEAT" = "HEAT",
+                                           "ROUGH SURF" = "HIGH SURF",
+                                           "FLASH FLOODS" = "FLOOD",
+                                           "FLOOD/RIVER FLOOD" = "FLOOD",
+                                           "GUSTY WINDS" = "WIND",
+                                           "HIGH SEAS" = "HIGH SURF",
+                                           "HIGH WATER" = "HIGH SURF",
+                                           "HIGH WAVES" = "HIGH SURF",
+                                           "HURRICANE FELIX" = "HURRICANE",
+                                           "RAIN/WIND" = "WIND",
+                                           "RAPIDLY RISING WATER" = "HIGH SURF",
+                                           "Strong Winds" = "WIND"))
+
+storm_data$PROPDMGEXP <- as.factor(storm_data$PROPDMGEXP)
+
+```
+
+## Results
+
+Top 10 events with more casualities
+```{r, data_analysis}
+my_data <- subset(storm_data, select = c('EVTYPE','FATALITIES','INJURIES')) %>%
+group_by(EVTYPE) %>%
+summarise_each(funs(sum)) %>%
+arrange(desc(FATALITIES, INJURIES)) %>%
+head(20)
+my_data
+```
+
+A Graphic with the data.
+```{r, plot_1}
+plot1 <- qplot(x=FATALITIES, y = INJURIES, color = EVTYPE, data = my_data, geom = 'point', size=I(3))
+plot1 + scale_color_discrete(name = "Type of Event", breaks = my_data$EVTYPE)
+```
+
+The worst event during the last years was the Heat and the Tornados
+
+
+To calculate the cost of the events we have use H for 100$, K por 1000$, M for 1000000$, B for 1000000000
+```{r}
+pos <- (storm_data$PROPDMGEXP == 'H' | storm_data$PROPDMGEXP == 'h')
+storm_data$PROPDMG[pos] <- (storm_data$PROPDMG[pos] * 100)
+
+pos <- (storm_data$PROPDMGEXP == 'K')
+storm_data$PROPDMG[pos] <- (storm_data$PROPDMG[pos] * 10000)
+pos <- (storm_data$CROPDMGEXP == 'K' | storm_data$CROPDMGEXP == 'k')
+storm_data$CROPDMG[pos] <- (storm_data$CROPDMG[pos] * 10000)
+  
+pos <- (storm_data$PROPDMGEXP == 'M' | storm_data$PROPDMGEXP == 'm')
+storm_data$PROPDMG[pos] <- (storm_data$PROPDMG[pos] * 1000000)
+pos <- (storm_data$CROPDMGEXP == 'M' | storm_data$CROPDMGEXP == 'm')
+storm_data$CROPDMG[pos] <- (storm_data$CROPDMG[pos] * 1000000)
+
+pos <- (storm_data$PROPDMGEXP == 'B')
+storm_data$PROPDMG[pos] <- (storm_data$PROPDMG[pos] * 1000000000)
+pos <- (storm_data$CROPDMGEXP == 'B')
+storm_data$CROPDMG[pos] <- (storm_data$CROPDMG[pos] * 1000000000)
+
+my_data <- subset(storm_data, select = c('EVTYPE','PROPDMG','CROPDMG')) %>%
+group_by(EVTYPE) %>%
+summarise_each(funs(sum)) %>%
+mutate(TOTDMG = PROPDMG + CROPDMG) %>%
+subset(select = c('EVTYPE','TOTDMG')) %>%
+arrange(desc(TOTDMG)) %>%
+head(20)
+my_data
+```
